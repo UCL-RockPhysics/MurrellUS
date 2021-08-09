@@ -39,7 +39,7 @@ function getdata(fid::HDF5.File,info,chan::Int64,Ind::Int64)
         dataset = fid[info[:groups][chan]][info[:datasets][chan][Ind]]
         # Read attributes from dataset
         # Averaging = read_attribute(dataset,"Averaging")
-        # delay_us = read_attribute(dataset,"Delay (us)")
+        delay_us = read_attribute(dataset,"Delay (us)")
         # Fpulse_MHz = read_attribute(dataset,"Fpulse (MHz)")
         # gain_dB = read_attribute(dataset,"Gain (dB)")
         # PRF_us = read_attribute(dataset,"PRF (us)")
@@ -52,7 +52,7 @@ function getdata(fid::HDF5.File,info,chan::Int64,Ind::Int64)
         # read waveform data
         trace = read(dataset)
         # f₀ = length(trace)/width_us*1e6
-        return trace
+        return trace, delay_us
 end
 
 function gettime_us(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]))
@@ -98,7 +98,7 @@ function trackarrivals(fid::HDF5.File, info, chan, master, t0, args... ; indices
     t = t0
     for k in indices
         print
-        trace = getdata(fid, info, chan, k)
+        trace,~ = getdata(fid, info, chan, k)
         DT[k], _ = finddt(master, t0, trace, t, args...)
         t = t0 - DT[k]
     end
