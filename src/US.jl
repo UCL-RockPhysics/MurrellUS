@@ -137,8 +137,9 @@ function trackarrivals_hpass(fid::HDF5.File, info, chan, master, t0, fpass, args
     f = remez(50,[(0,fpass-0.01*fpass)=>0,(fpass,args[1]/2)=>1], Hz = args[1])
     for k in indices
         print
-        trace,~ = filtfilt(f,getdata(fid, info, chan, k))
-        DT[k], _ = finddt(master, t0, trace, t, args...)
+        trace,~ = getdata(fid, info, chan, k)
+	traceF = filtfilt(f,trace)
+        DT[k], _ = finddt(master, t0, traceF, t, args...)
         t = t0 - DT[k]
     end
     return DT
