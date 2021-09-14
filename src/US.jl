@@ -54,7 +54,15 @@ function getdata(fid::HDF5.File,info,chan::Int64,Ind::Int64)
         # f₀ = length(trace)/width_us*1e6
         return trace, delay_us
 end
-
+"""
+    gettime_us(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]))
+Get timestamp of ultrasonic data from .hdf5 file and shift to Julia timebase
+Inputs:
+* fid: Reference to open .hdf5 file
+* info: a dictionary containing group and dataset information
+* chan: index of the channel
+Return t_us
+"""
 function gettime_us(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]))
         g = fid[info[:groups][chan]]
         t_us = zeros(length(g))
@@ -99,6 +107,37 @@ function trackarrivals(fid::HDF5.File, info, chan, master, t0, args... ; indices
     for k in indices
         print
         trace,~ = getdata(fid, info, chan, k)
+        DT[k], _ = finddt(master, t0, trace, t, args...)
+        t = t0 - DT[k]
+    end
+    return DT
+end
+
+"""
+    trackarrivals_hpass(fid, gropname, master, t0, f0, fcc, front, back)
+
+Track change in arrival times by cross-correlation with a master waveform.
+Inputs:
+ * fid: HDF5 file reference
+ * info: dictionary containing file structure information
+ * chan: Indice of the channel
+ * master: a master waveform
+ * t0: the arrival time in the master waveform (in seconds)
+ * fpass: the high pass frequency
+ * f0: the sampling frequency (must be the same for all)
+ * fcc: the resampling frequency
+ * front: size of front window
+ * back: size of back window
+
+Return DT
+"""
+function trackarrivals_hpass(fid::HDF5.File, info, chan, master, t0, fpass, args... ; indices = 1:length(fid[info[:groups][chan]]))
+    DT = zeros(length(indices))
+    t = t0
+    f = remez(50,[(0,fpass-0.01*fpass)=>0,(fpass,f0/2)=>1], Hz = f0)
+    for k in indices
+        print
+        trace,~ = filtfilt(f,getdata(fid, info, chan, k))
         DT[k], _ = finddt(master, t0, trace, t, args...)
         t = t0 - DT[k]
     end
