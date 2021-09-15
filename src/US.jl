@@ -131,14 +131,14 @@ Inputs:
 
 Return DT
 """
-function trackarrivals_hpass(fid::HDF5.File, info, chan, master, t0, fpass, args... ; indices = 1:length(fid[info[:groups][chan]]))
+function trackarrivals_hpass(fid::HDF5.File, info, chan, master, t0, filter, args... ; indices = 1:length(fid[info[:groups][chan]]))
     DT = zeros(length(indices))
     t = t0
-    f = remez(50,[(0,fpass-0.01*fpass)=>0,(fpass,f0/2)=>1], Hz = f0)
     for k in indices
         print
-        trace,~ = filtfilt(f,getdata(fid, info, chan, k))
-        DT[k], _ = finddt(master, t0, trace, t, args...)
+        trace,~ = getdata(fid, info, chan, k)
+        traceF = filtfilt(filter,trace)
+        DT[k], _ = finddt(master, t0, traceF, t, args...)
         t = t0 - DT[k]
     end
     return DT
