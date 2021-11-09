@@ -107,8 +107,8 @@ function trackarrivals(fid::HDF5.File, info, chan, master, t0, args... ; indices
     for k in indices
         print
         trace,~ = getdata(fid, info, chan, k)
-        DT[k], _ = finddt(master, t0, trace, t, args...)
-        t = t0 - DT[k]
+        DT[k-indices[1]+1], _ = finddt(master, t0, trace, t, args...)
+        t = t0 - DT[k-indices[1]+1]
     end
     return DT
 end
