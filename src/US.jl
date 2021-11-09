@@ -211,7 +211,7 @@ end
 
 function plot_traces(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]))
     figure;
-    trace,delay = getdata(fid, info, chan, k)
+    trace,delay = getdata(fid, info, chan, 1)
     t = delay .+ 0.01:0.01:length(trace)/100
     for k in indices
         trace,delay = getdata(fid, info, chan, k)
