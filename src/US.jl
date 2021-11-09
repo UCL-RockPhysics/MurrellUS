@@ -208,3 +208,14 @@ function finddt(s1,t1,s2,t2,f0,fcc,front,back)
 
     return DT, X
 end
+
+function plot_traces(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]))
+    figure;
+    trace,delay = getdata(fid, info, chan, k)
+    t = delay .+ 0.01:0.01:length(trace)/100
+    for k in indices
+        trace,delay = getdata(fid, info, chan, k)
+        plot(t,trace./2048 .+k, c="k")
+    end
+    return gcf()
+end
