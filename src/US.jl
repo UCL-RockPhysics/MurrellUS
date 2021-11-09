@@ -138,8 +138,8 @@ function trackarrivals_hpass(fid::HDF5.File, info, chan, master, t0, filter, arg
         print
         trace,~ = getdata(fid, info, chan, k)
         traceF = filtfilt(filter,trace)
-        DT[k], _ = finddt(master, t0, traceF, t, args...)
-        t = t0 - DT[k]
+        DT[k-indices[1]+1], _ = finddt(master, t0, traceF, t, args...)
+        t = t0 - DT[k-indices[1]+1]
     end
     return DT
 end
