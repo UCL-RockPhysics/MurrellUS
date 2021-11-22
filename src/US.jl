@@ -261,7 +261,7 @@ function V_calc!(P, info, range)
     P[:T_ini_s] = 40e-6 +info[:t0] .-P[:T_ass_s][1] # Estimate initial travel time through sample
     P[:V_ini] = P[:L_samp_m][1]/P[:T_ini_s] # estimate initial sample wavespeed
     x = P[:F_kN_i][i[range[1]]:i[range[end]]] # get force data to estimate interface delay
-    y = P[:DT][range] .+P[:L_samp_m][range]./P[:V_ini] .+P[:T_ass_s][range] # get delay time to estimate interface delay
+    y = -P[:DT][range] .-(P[:L_samp_m][range]./P[:V_ini] .+P[:T_ass_s][range]) # get delay time to estimate interface delay
     P[:m],_ = linfit(x,y) # fit DT as a function of load for interface correction
 
     ## Final velocity calculations
