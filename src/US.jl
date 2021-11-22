@@ -226,7 +226,6 @@ Output:
     fig = plot_traces(fid, info, 3, indices = 1:10:1000, scale=0.1)
 ```
 """
-
 function plot_traces(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]), scale=0.1)
     figure; # open new figure
     trace,delay = getdata(fid, info, chan, 1) # open the first waveform to create a time vector for plotting
@@ -246,6 +245,10 @@ function V_calc!(P, info, range)
     info_US = getrootinfo(fid) # Get information about file structure
     t_us = gettime_us(fid, info_US, 3) # get ultrasonic scan time for interpolation function
     M_interp!(P, t_us) # interpolate mechanical data for plotting and corrections
+    P[:F_kN_i] = lininterp(P[:t_s],P[:F_kN_j], t_us)
+    P[:σ_MPa_i] = lininterp(P[:t_s],P[:σ_MPa_j], t_us)
+    P[:σ3_MPa_i] = lininterp(P[:t_s],P[:Pc2_MPa], t_us)
+    P[:ε_i] = lininterp(P[:t_s],P[:ε], t_us)
     master,~ = getdata(fid, info_US, 3, i[1]) # get the master waveform, corresponding to the experiment hit point
     P[:DT] = trackarrivals(fid, info_US, 3, master, info[:t1], 100e6, 1000e6, 50, 50, indices=i) # run the cross correlation algorithm to obtain arrival time
 
