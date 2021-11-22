@@ -244,7 +244,6 @@ function V_calc!(P, info, range)
     fid = h5open(pathUS*experiment*".h5") # Open .hdf5 file containing waveforms
     info_US = getrootinfo(fid) # Get information about file structure
     t_us = gettime_us(fid, info_US, 3) # get ultrasonic scan time for interpolation function
-    M_interp!(P, t_us) # interpolate mechanical data for plotting and corrections
     P[:F_kN_i] = lininterp(P[:t_s],P[:F_kN_j], t_us)
     P[:σ_MPa_i] = lininterp(P[:t_s],P[:σ_MPa_j], t_us)
     P[:σ3_MPa_i] = lininterp(P[:t_s],P[:Pc2_MPa], t_us)
