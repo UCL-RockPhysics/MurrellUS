@@ -238,8 +238,7 @@ function plot_traces(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:gr
     return gcf()
 end
 
-
-function Vcalc(P, info, range)
+function V_calc!(P, info, range)
     pathUS = "/Users/christopherharbord/Dropbox/Research/UCL/raw_lab data/Murrell_US_data/"
     experiment=info[:name] # Get experiment name
     i = info[:I_US] # get indices of waveform data
