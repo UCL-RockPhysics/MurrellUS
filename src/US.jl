@@ -238,34 +238,42 @@ function plot_traces(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:gr
 end
 
 function V_calc!(P, info, range)
+    ## Open waveform data
     pathUS = "/Users/christopherharbord/Dropbox/Research/UCL/raw_lab data/Murrell_US_data/"
     experiment=info[:name] # Get experiment name
     i = info[:I_US] # get indices of waveform data
     fid = h5open(pathUS*experiment*".h5") # Open .hdf5 file containing waveforms
     info_US = getrootinfo(fid) # Get information about file structure
+
+    ## Mechanical data interpolation
     t_us = gettime_us(fid, info_US, 3) # get ultrasonic scan time for interpolation function
     P[:F_kN_i] = lininterp(P[:t_s],P[:F_kN_j], t_us)
     P[:σ_MPa_i] = lininterp(P[:t_s],P[:σ_MPa_j], t_us)
     P[:σ3_MPa_i] = lininterp(P[:t_s],P[:Pc2_MPa], t_us)
     P[:ε_i] = lininterp(P[:t_s],P[:ε], t_us)
-    master,~ = getdata(fid, info_US, 3, i[1]) # get the master waveform, corresponding to the experiment hit point
+
+    ## Cross correlation algorithm
+    master,delay = getdata(fid, info_US, 3, i[1]) # get the master waveform, corresponding to the experiment hit point
     P[:DT] = trackarrivals(fid, info_US, 3, master, info[:t1], 100e6, 1000e6, 50, 50, indices=i) # run the cross correlation algorithm to obtain arrival time
 
     ## Corrections for load and confining pressure
-    P[:L_samp_m] = (1 .-(P[:ε_i][i] .-P[:ε_i][i[1]]))*info[:L_mm]*1e-3 # get sample length during experiment
-    # Estimate length of pistons, subtracting confining pressure contribution and load contribution, both estimated from load cycles
-    P[:L_ass_m] = -info[:L0].*(P[:σ3_MPa_i][i]./200e3) .- # Confining pressure contribution
-                (P[:F_kN_i][i]*0.01e-3) .+# Load contribution
-                info[:L0]
+    P[:L_samp_m] = (1 .-(P[:ε_i][i] .-P[:ε_i][i[1]]))*info[:L_mm]*1e-3 # sample length during experiment
+    # Compute length of pistons, subtracting confining pressure contribution and load contribution
+    # this correction is computed using FEA and confirmed in experiment using a fused silica blank (run0146)
+    P[:L_ass_m] = -(P[:σ3_MPa_i][i].*info[:U_P]) .- # Confining pressure contribution
+                (P[:F_kN_i][i].*info[:U_F]) .+# Load contribution
+                info[:L0] # initial distance
     P[:T_ass_s] = P[:L_ass_m]./info[:V_ass] # Estimate travel time through pistons as a function of time
     P[:T_ini_s] = 40e-6 +info[:t0] .-P[:T_ass_s][1] # Estimate initial travel time through sample
     P[:V_ini] = P[:L_samp_m][1]/P[:T_ini_s] # estimate initial sample wavespeed
+
+    ## Interface delay estimation
     x = P[:F_kN_i][i[range[1]]:i[range[end]]] # get force data to estimate interface delay
-    y = -P[:DT][range] .-(P[:L_samp_m][range]./P[:V_ini] .+P[:T_ass_s][range]) # get delay time to estimate interface delay
-    P[:m],_ = linfit(x,y) # fit DT as a function of load for interface correction
+    y = (P[:L_samp_m][range]./P[:V_ini] .+P[:T_ass_s][range]) .-P[:DT][range]  # get delay time to estimate interface delay
+    P[:m],_ = linfit(x,y) # get load dependant velocity change
 
     ## Final velocity calculations
-    P[:T_samp] = 40e-6 +info[:t0] .-P[:T_ass_s] .-(P[:DT] -P[:F_kN_i][i]*P[:m]) # correct travel time through sample for all delays
+    P[:T_samp] = delay*1e-6 +info[:t0] .-P[:T_ass_s] .-(P[:DT] -P[:F_kN_i][i]*P[:m]) # correct travel time through sample for all delays
     V = P[:L_samp_m]./P[:T_samp] # compute velocity based on corrected travel time
     P[:V_ms] = V#./V[1] # store the velocity output
     P[:ΔV] = (V./V[1]).-1 # store the normalised velocity output
