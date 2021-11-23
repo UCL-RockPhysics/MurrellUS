@@ -269,7 +269,7 @@ function V_calc!(P, info, range)
 
     ## Interface delay estimation
     x = P[:F_kN_i][i[range[1]]:i[range[end]]] # get force data to estimate interface delay
-    y = (P[:L_samp_m][range]./P[:V_ini] .-P[:T_ass_s][range]) .-P[:DT][range]  # get delay time to estimate interface delay
+    y = (P[:L_samp_m][range]./P[:V_ini] .+P[:T_ass_s][range]) .+P[:DT][range]  # get delay time to estimate interface delay
     P[:m],_ = linfit(x,y) # get load dependant velocity change
 
     ## Final velocity calculations
