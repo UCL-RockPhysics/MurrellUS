@@ -264,7 +264,7 @@ function V_calc!(P, info, range)
                 (P[:F_kN_i][i].*info[:U_F]) .+# Load contribution
                 info[:L0] # initial length
     P[:T_ass_s] = P[:L_ass_m]./info[:V_ass] # Estimate travel time through pistons as a function of time
-    P[:T_ini_s] = 40e-6 +info[:t0] .-P[:T_ass_s][1] # Estimate initial travel time through sample
+    P[:T_ini_s] = delay*1e-6 +info[:t0] .-P[:T_ass_s][1] # Estimate initial travel time through sample
     P[:V_ini] = P[:L_samp_m][1]/P[:T_ini_s] # estimate initial sample wavespeed
 
     ## Interface delay estimation
@@ -273,7 +273,7 @@ function V_calc!(P, info, range)
     P[:m],_ = linfit(x,y) # get load dependant velocity change
 
     ## Final velocity calculations
-    P[:T_samp] = delay*1e-6 +info[:t0] .-P[:T_ass_s] .-(P[:DT] .+P[:F_kN_i][i]*P[:m]) # correct travel time through sample for all delays
+    P[:T_samp] = delay*1e-6 +info[:t0] .-P[:T_ass_s] .-(P[:DT] .-P[:F_kN_i][i]*P[:m]) # correct travel time through sample for all delays
     V = P[:L_samp_m]./P[:T_samp] # compute velocity based on corrected travel time
     P[:V_ms] = V#./V[1] # store the velocity output
     P[:ΔV] = (V./V[1]).-1 # store the normalised velocity output
