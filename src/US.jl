@@ -247,10 +247,10 @@ function V_calc!(P, info, range)
 
     ## Mechanical data interpolation
     t_us = gettime_us(fid, info_US, 3) # get ultrasonic scan time for interpolation function
-    P[:F_kN_i] = lininterp(P[:t_s],float.(P[:F_kN_j]), t_us)
-    P[:σ_MPa_i] = lininterp(P[:t_s],float.(P[:σ_MPa_j]), t_us)
-    P[:σ3_MPa_i] = lininterp(P[:t_s],float.([:Pc2_MPa]), t_us)
-    P[:ε_i] = lininterp(P[:t_s],float.(P[:ε]), t_us)
+    P[:F_kN_i] = lininterp(P[:t_s],vec.(P[:F_kN_j]), t_us)
+    P[:σ_MPa_i] = lininterp(P[:t_s],vec.(P[:σ_MPa_j]), t_us)
+    P[:σ3_MPa_i] = lininterp(P[:t_s],vec.([:Pc2_MPa]), t_us)
+    P[:ε_i] = lininterp(P[:t_s],vec.(P[:ε]), t_us)
 
     ## Cross correlation algorithm
     master,delay = getdata(fid, info_US, 3, i[1]) # get the master waveform, corresponding to the experiment hit point
