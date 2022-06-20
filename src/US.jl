@@ -10,16 +10,16 @@ Inputs:
 return info = Dict(:start_time, :groups, :datasets)
 """
 function getrootinfo(fid::HDF5.File)
-        start_time = DateTime(read_attribute(fid,"Date")*read_attribute(fid,"Time"),"dd/mm/yyyyHH:MM:SS")
-        groups = keys(fid)
-        datasets = []
-        for g = 1:length(groups)
+        start_time = DateTime(read_attribute(fid,"Date")*read_attribute(fid,"Time"),"dd/mm/yyyyHH:MM:SS") # read start time from file header
+        groups = keys(fid) # get group keys (i.e. channel names) from .hdf5 file
+        datasets = [] # create empty array to store dataset names
+        for g = 1:length(groups) # loop through groups and extract dataset names using key function
                 push!(datasets,keys(fid[groups[g]]))
         end
-        info = Dict(
-        :start_time => start_time,
-        :groups => groups,
-        :datasets => datasets
+        info = Dict( # build dictionary to store data
+        :start_time => start_time, # store start time
+        :groups => groups, # store channel names
+        :datasets => datasets # store dataset names
         )
 end
 """
@@ -36,10 +36,10 @@ Inputs:
 Return trace, delay_us
 """
 function getdata(fid::HDF5.File,info,chan::Int64,Ind::Int64)
-        dataset = fid[info[:groups][chan]][info[:datasets][chan][Ind]]
-        # Read attributes from dataset
+        dataset = fid[info[:groups][chan]][info[:datasets][chan][Ind]] # open dataset from hdf5 file according to input channel and indice of dataset
+        # Read attributes from dataset, most of these not required, but can be uncommented if other parameters need to be returned
         # Averaging = read_attribute(dataset,"Averaging")
-        delay_us = read_attribute(dataset,"Delay (us)")
+        delay_us = read_attribute(dataset,"Delay (us)") # read delay attribute from individual data set
         # Fpulse_MHz = read_attribute(dataset,"Fpulse (MHz)")
         # gain_dB = read_attribute(dataset,"Gain (dB)")
         # PRF_us = read_attribute(dataset,"PRF (us)")
@@ -50,9 +50,9 @@ function getdata(fid::HDF5.File,info,chan::Int64,Ind::Int64)
         # width_us = read_attribute(dataset,"Width (us)")
 
         # read waveform data
-        trace = read(dataset)
+        trace = read(dataset) # read waveform data from dataset
         # f₀ = length(trace)/width_us*1e6
-        return trace, delay_us
+        return trace, delay_us # return the waveform trace and delay in microseconds
 end
 """
     gettime_us(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]))
@@ -66,11 +66,11 @@ Optional inputs:
 Return t_us
 """
 function gettime_us(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]))
-        g = fid[info[:groups][chan]]
-        t_us = zeros(length(g))
-        for k in indices
-            dataset = g[info[:datasets][chan][k]]
-            t_us[k] =  read_attribute(dataset,"Time (s)")
+        g = fid[info[:groups][chan]] # get name of group
+        t_us = zeros(length(g)) # initialise array to be filled with survey timestamps
+        for k in indices # loop through datasets
+            dataset = g[info[:datasets][chan][k]] # read dataset into memory
+            t_us[k] =  read_attribute(dataset,"Time (s)") # extract timestamp from open dataset
         end
         return t_us
 end
@@ -83,7 +83,7 @@ Inputs:
 Return t_conv
 """
 function t_conv(t_in)
-        t_conv = t_in+t_ref
+        t_conv = t_in+t_ref # convert LabView time to UTC by adding constant t_ref
 end
 
 """
@@ -106,15 +106,15 @@ Keyword arguments
 Return DT
 """
 function trackarrivals(fid::HDF5.File, info, chan, master, t0, args... ; indices = 1:length(fid[info[:groups][chan]]))
-    DT = zeros(length(indices))
-    t = t0
-    for k in indices
-        print
-        trace,~ = getdata(fid, info, chan, k)
-        DT[k-indices[1]+1], _ = finddt(master, t0, trace, t, args...)
-        t = t0 - DT[k-indices[1]+1]
+    DT = zeros(length(indices)) # get length of indice range of interest
+    t = t0 # initialise variable t as the reference arrival time
+    for k in indices # loop through indice range
+        print # required to update variables(?)
+        trace,~ = getdata(fid, info, chan, k) # get trace data, omit delay time
+        DT[k-indices[1]+1], _ = finddt(master, t0, trace, t, args...) # find time shift between master and test waveform and store cumulative value relative to t0
+        t = t0 - DT[k-indices[1]+1] # update time window center
     end
-    return DT
+    return DT # return DT as a function output
 end
 #
 # """
@@ -167,48 +167,48 @@ Output:
 ```
 """
 function finddt(s1,t1,s2,t2,f0,fcc,front,back)
-
+    # this was copied from AEprocessing, with no changes
     # indices of picks
     i1 = max(1, trunc(Int, t1*f0))
     i2 = max(1, trunc(Int, t2*f0))
 
-    (imin, imax) = minmax(i1,i2)
+    (imin, imax) = minmax(i1,i2) # to establish safe length of padding zeros
 
-    # ake safe windows
-    N = length(s1)
-    back_safe  = min(back, imin-1)
-    front_safe = min(front, N-imax)
+    # make safe windows
+    N = length(s1) # get length of master waveform
+    back_safe  = min(back, imin-1) # get minimum 'back' window i.e. after
+    front_safe = min(front, N-imax) # get minimum 'front' window i.e. before
 
     # trim signals
-    offset = imin-back_safe-1
-    win = tukey(front_safe+back_safe+1,0.6)
+    offset = imin-back_safe-1 # get offset betwen s1 and s2
+    win = tukey(front_safe+back_safe+1,0.6) # compute tukey window
 
 
-    s1trimmed = s1[imin-back_safe:imax+front_safe]
-    s1trimmed[1:i1-imin] .= 0
-    s1trimmed[i1+front_safe+1-offset:end] .= 0
-    s1trimmed[i1-back_safe-offset:i1+front_safe-offset] .*= win
+    s1trimmed = s1[imin-back_safe:imax+front_safe] # trim s1
+    s1trimmed[1:i1-imin] .= 0 # pad front with zeros
+    s1trimmed[i1+front_safe+1-offset:end] .= 0 # pad back with zeros
+    s1trimmed[i1-back_safe-offset:i1+front_safe-offset] .*= win # window data
 
-    s2trimmed = s2[imin-back_safe:imax+front_safe]
-    s2trimmed[1:i2-imin] .= 0
-    s2trimmed[i2+front_safe+1-offset:end] .= 0
-    s2trimmed[i2-back_safe-offset:i2+front_safe-offset] .*= win
+    s2trimmed = s2[imin-back_safe:imax+front_safe] # trim s2
+    s2trimmed[1:i2-imin] .= 0 # pad front with zeros
+    s2trimmed[i2+front_safe+1-offset:end] .= 0 # pad back with zeros
+    s2trimmed[i2-back_safe-offset:i2+front_safe-offset] .*= win #window data
 
     # time basis
-    time = (0:back_safe+front_safe+imax-imin)/f0
-    time_rs = collect(time[1]:(1.0/fcc):time[end])
+    time = (0:back_safe+front_safe+imax-imin)/f0 # create raw time vector
+    time_rs = collect(time[1]:(1.0/fcc):time[end]) # create subsampled time vector
 
     # interpolate
     s1_rs = cubicinterp(time, s1trimmed, time_rs)
     s2_rs = cubicinterp(time, s2trimmed, time_rs)
 
     # ccr
-    lags = (-(size(s1_rs,1)-1):size(s1_rs,1)-1)
-    ccr = crosscor(s2_rs, s1_rs, lags)
+    lags = (-(size(s1_rs,1)-1):size(s1_rs,1)-1) # create vector centered around zero of time lag
+    ccr = crosscor(s2_rs, s1_rs, lags) # cross correlate the signals
 
     # find the timeshift
-    (X, I) = findmax(ccr)
-    DT = lags[I]/fcc
+    (X, I) = findmax(ccr) # time shift corresponds to maxima of cross correlation function
+    DT = lags[I]/fcc # compute timeshift in s
 
     return DT, X
 end
@@ -263,10 +263,10 @@ function V_calc!(P, info, range)
 
     ## Mechanical data interpolation
     t_us = gettime_us(fid, info_US, 3) # get ultrasonic scan time for interpolation function
-    P[:F_kN_i] = lininterp(P[:t_s],vec(P[:F_kN_j]), t_us)
-    P[:σ_MPa_i] = lininterp(P[:t_s],vec(P[:σ_MPa_j]), t_us)
-    P[:σ3_MPa_i] = lininterp(P[:t_s],vec(P[:Pc2_MPa]), t_us)
-    P[:ε_i] = lininterp(P[:t_s],vec(P[:ε]), t_us)
+    P[:F_kN_i] = lininterp(P[:t_s],vec(P[:F_kN_j]), t_us) # interpolate corrected force
+    P[:σ_MPa_i] = lininterp(P[:t_s],vec(P[:σ_MPa_j]), t_us) # interpolate differential stress
+    P[:σ3_MPa_i] = lininterp(P[:t_s],vec(P[:Pc2_MPa]), t_us) # interpolate confining pressure
+    P[:ε_i] = lininterp(P[:t_s],vec(P[:ε]), t_us) # interpolate sample axial strain
 
     ## Cross correlation algorithm
     master,delay = getdata(fid, info_US, 3, i[1]) # get the master waveform, corresponding to the experiment hit point
