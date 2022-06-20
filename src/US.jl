@@ -3,7 +3,7 @@ const t_ref = datetime2unix(DateTime(1904,01,01,0,0,0))
 """
 	getrootinfo(fid::HDF5.File)
 
-Read groups and dataset names for random file access
+Read groups and dataset names for random file access, using dictionary database
 Inputs:
 * fid: hdf5 file reference
 
@@ -33,7 +33,7 @@ Inputs:
 * chan: index of the channel
 * Ind: the index of the dataset
 
-Return trace
+Return trace, delay_us
 """
 function getdata(fid::HDF5.File,info,chan::Int64,Ind::Int64)
         dataset = fid[info[:groups][chan]][info[:datasets][chan][Ind]]
@@ -61,6 +61,8 @@ Inputs:
 * fid: Reference to open .hdf5 file
 * info: a dictionary containing group and dataset information
 * chan: index of the channel
+Optional inputs:
+* indices: an integer range corresponding to a subset of the data
 Return t_us
 """
 function gettime_us(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:groups][chan]]))
@@ -68,7 +70,7 @@ function gettime_us(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:gro
         t_us = zeros(length(g))
         for k in indices
             dataset = g[info[:datasets][chan][k]]
-            t_us[k] =  t_conv(read_attribute(dataset,"Time (s)"))
+            t_us[k] =  read_attribute(dataset,"Time (s)")
         end
         return t_us
 end
@@ -85,7 +87,7 @@ function t_conv(t_in)
 end
 
 """
-    trackarrivals(fid, gropuname, master, t0, f0, fcc, front, back)
+    trackarrivals(fid, info, chan, master, t0, args...)
 
 Track change in arrival times by cross-correlation with a master waveform.
 Inputs:
@@ -93,12 +95,14 @@ Inputs:
  * info: dictionary containing file structure information
  * chan: Indice of the channel
  * master: a master waveform
+Optional inputs
  * t0: the arrival time in the master waveform (in seconds)
  * f0: the sampling frequency (must be the same for all)
  * fcc: the resampling frequency
  * front: size of front window
  * back: size of back window
-
+Keyword arguments
+ * indices: an integer range corresponding to a subset of the data
 Return DT
 """
 function trackarrivals(fid::HDF5.File, info, chan, master, t0, args... ; indices = 1:length(fid[info[:groups][chan]]))
@@ -112,37 +116,37 @@ function trackarrivals(fid::HDF5.File, info, chan, master, t0, args... ; indices
     end
     return DT
 end
-
-"""
-    trackarrivals_hpass(fid, gropname, master, t0, f0, fcc, front, back)
-
-Track change in arrival times by cross-correlation with a master waveform.
-Inputs:
- * fid: HDF5 file reference
- * info: dictionary containing file structure information
- * chan: Indice of the channel
- * master: a master waveform
- * t0: the arrival time in the master waveform (in seconds)
- * fpass: the high pass frequency
- * f0: the sampling frequency (must be the same for all)
- * fcc: the resampling frequency
- * front: size of front window
- * back: size of back window
-
-Return DT
-"""
-function trackarrivals_hpass(fid::HDF5.File, info, chan, master, t0, filter, args... ; indices = 1:length(fid[info[:groups][chan]]))
-    DT = zeros(length(indices))
-    t = t0
-    for k in indices
-        print
-        trace,~ = getdata(fid, info, chan, k)
-        traceF = filtfilt(filter,trace)
-        DT[k-indices[1]+1], _ = finddt(master, t0, traceF, t, args...)
-        t = t0 - DT[k-indices[1]+1]
-    end
-    return DT
-end
+#
+# """
+#     trackarrivals_hpass(fid, gropname, master, t0, f0, fcc, front, back)
+#
+# Track change in arrival times by cross-correlation with a master waveform.
+# Inputs:
+#  * fid: HDF5 file reference
+#  * info: dictionary containing file structure information
+#  * chan: Indice of the channel
+#  * master: a master waveform
+#  * t0: the arrival time in the master waveform (in seconds)
+#  * fpass: the high pass frequency
+#  * f0: the sampling frequency (must be the same for all)
+#  * fcc: the resampling frequency
+#  * front: size of front window
+#  * back: size of back window
+#
+# Return DT
+# """
+# function trackarrivals_hpass(fid::HDF5.File, info, chan, master, t0, filter, args... ; indices = 1:length(fid[info[:groups][chan]]))
+#     DT = zeros(length(indices))
+#     t = t0
+#     for k in indices
+#         print
+#         trace,~ = getdata(fid, info, chan, k)
+#         traceF = filtfilt(filter,trace)
+#         DT[k-indices[1]+1], _ = finddt(master, t0, traceF, t, args...)
+#         t = t0 - DT[k-indices[1]+1]
+#     end
+#     return DT
+# end
 
 """
     finddt(s1,t1,s2,t2,f0,fcc,front,back)
@@ -216,7 +220,7 @@ Input:
     fid:    reference to open .hdf5 file in memory
     info:   a dictionary containing information about the .hdf5 file
     chan:   the channel of data to plot
-Optional input(s):
+Keyword arguments:
     indices:indices or a range of traces to plot
     scale:  the normalisation scale of the data
 Output:
@@ -237,6 +241,18 @@ function plot_traces(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:gr
     return gcf()
 end
 
+"""
+    V_calc!(P, info, range)
+Compute normalised wave velocity history
+Input:
+    P: dictionary containing processed mechanical data
+    info:   dictionary of information relating to mechanical data
+    range: the portion of the experiment used to correct wavespeed with load
+Output:
+Adds the following parameters to the mechanical data dictionary
+P[:DT]: the change in arrival time computed from cross correlation
+P[:ΔV]: the normalised velocity change
+"""
 function V_calc!(P, info, range)
     ## Open waveform data
     pathUS = "/Users/christopherharbord/Dropbox/Research/UCL/raw_lab data/Murrell_US_data/"
