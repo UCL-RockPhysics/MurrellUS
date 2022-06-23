@@ -1,4 +1,4 @@
-const t_ref = datetime2unix(DateTime(1904,01,01,0,0,0))
+# const t_ref = datetime2unix(DateTime(1904,01,01,0,0,0))
 
 """
 	getrootinfo(fid::HDF5.File)
@@ -75,16 +75,16 @@ function gettime_us(fid::HDF5.File, info, chan; indices = 1:length(fid[info[:gro
         return t_us
 end
 
-"""
-    t_conv(t_in)
-Convert Labview time to unix time
-Inputs:
-* t_in: LabView timestamp in seconds
-Return t_conv
-"""
-function t_conv(t_in)
-        t_conv = t_in+t_ref # convert LabView time to UTC by adding constant t_ref
-end
+# """
+#     t_conv(t_in)
+# Convert Labview time to unix time
+# Inputs:
+# * t_in: LabView timestamp in seconds
+# Return t_conv
+# """
+# function t_conv(t_in)
+#         t_conv = t_in+t_ref # convert LabView time to UTC by adding constant t_ref
+# end
 
 """
     trackarrivals(fid, info, chan, master, t0, args...)
