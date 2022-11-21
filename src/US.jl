@@ -293,4 +293,5 @@ function V_calc!(P, info, range)
     V = P[:L_samp_m]./P[:T_samp] # compute velocity based on corrected travel time
     P[:V_ms] = V#./V[1] # store the velocity output
     P[:ΔV] = (V./V[1]).-1 # store the normalised velocity output
+    P[:t_US] = t_us
 end
